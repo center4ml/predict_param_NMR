@@ -10,6 +10,6 @@ Subsequent steps:
 
 04train.py: Trains the YOLO model via an auxiliary trainer model.
 
-05train.py: Extracts the parameters of the YOLO model from the auxiliary trainer model.
+05extract.py: Extracts the parameters of the YOLO model from the auxiliary trainer model.
 
 06plot.py: Plots a random spectrum with generated and predicted peaks.
