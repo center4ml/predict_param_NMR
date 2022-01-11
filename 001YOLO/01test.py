@@ -3,11 +3,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-#Demonstrates that spectra generated in tensorflow and numpy are identical to those generated in the original python code from Daniel. Randomly takes 1 to 9 peaks and distributes them at random regardless of the YOLO grid.
-
-#Slightly modified constants from Daniel
-series = 20
-dwmin, dwmax = -10., 10.
+#Demonstrates that spectra generated in tensorflow and numpy are identical to those generated in the original python code from Daniel. Randomly takes 1 to 9 peaks and distributes them at random regardless of the YOLO grid. Displays spectra generated in tensorflow, numpy and in the original code. Calculates mean squared differences between these spectra.
 
 #Ranges of speed, frequency, damping coefficient and amplitude in units used in experiment
 sp_min, sp_max = -10., 10.
@@ -15,17 +11,21 @@ fr_min, fr_max = 0., 256.
 dc_min, dc_max = 0.1, 10.
 am_min, am_max = 0.1, 5.
 
+#Slightly modified constants from Daniel
+series = 20
+dwmin, dwmax = -10., 10.
+
 #Number of pixels along the speed and frequency dimension
 sp_pixels, fr_pixels = 2000, 256
 
 #Random number of peaks from 1 to 9
-count = tf.random.uniform([], 1, 10, dtype = tf.int32)
+peaks = tf.random.uniform([], 1, 10, dtype = tf.int32)
 
 #Random peak parameters in units used in experiment
-sp_values = tf.random.uniform([count], sp_min, sp_max)
-fr_values = tf.random.uniform([count], fr_min, fr_max)
-dc_values = tf.random.uniform([count], dc_min, dc_max)
-am_values = tf.random.uniform([count], am_min, am_max)
+sp_values = tf.random.uniform([peaks], sp_min, sp_max)
+fr_values = tf.random.uniform([peaks], fr_min, fr_max)
+dc_values = tf.random.uniform([peaks], dc_min, dc_max)
+am_values = tf.random.uniform([peaks], am_min, am_max)
 
 #Auxiliary arrays for generating spectrum in tensorflow
 t = tf.complex(tf.range(2 * fr_pixels, dtype = tf.float32) / fr_pixels / 2., 0.) #(512)

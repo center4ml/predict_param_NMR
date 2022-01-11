@@ -3,15 +3,15 @@ import tensorflow as tf
 
 #Trains the YOLO model via an auxiliary trainer model.
 
-#Slightly modified constants from Daniel
-series = 20
-dwmin, dwmax = -10., 10.
-
 #Ranges of speed, frequency, damping coefficient and amplitude in units used in experiment
 sp_min, sp_max = -10., 10.
 fr_min, fr_max = 0., 256.
 dc_min, dc_max = 0.1, 10.
 am_min, am_max = 0.1, 5.
+
+#Slightly modified constants from Daniel
+series = 20
+dwmin, dwmax = -10., 10.
 
 #Number of pixels and cells along the speed and frequency dimension
 sp_pixels, fr_pixels = 256, 256
