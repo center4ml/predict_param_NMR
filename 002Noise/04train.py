@@ -9,6 +9,9 @@ fr_min, fr_max = 0., 256.
 dc_min, dc_max = 0.1, 10.
 am_min, am_max = 0.1, 5.
 
+#Range of noise dispersion in units used in experiment
+nd_min, nd_max = 0., 0.
+
 #Slightly modified constants from Daniel
 series = 20
 dwmin, dwmax = -10., 10.
@@ -29,12 +32,14 @@ b = 2. * math.pi * \
 
 #Takes peak parameters and returns the resulting spectrum
 @tf.function
-def get(ob_labels, sp_values, fr_values, dc_values, am_values):
+def get(ob_labels, sp_values, fr_values, dc_values, am_values, nd_value):
     f = a[:, None, None] * sp_values + fr_values + fr_pixels / 2.
     fid = tf.complex(ob_labels * am_values, 0.) * \
           tf.exp(2. * math.pi * t[:, None, None, None] * (tf.complex(-dc_values, f))) * \
           tf.cast(tf.logical_and(0.8 * fr_pixels / 2. <= f, f <= 2. * fr_pixels - 0.8 * fr_pixels / 2.), tf.complex64)
     fid = tf.reduce_sum(fid, [2, 3])
+    fid = fid + tf.complex(tf.random.normal([2 * fr_pixels, series], 0., nd_value),
+                           tf.random.normal([2 * fr_pixels, series], 0., nd_value))
     fid = tf.concat([fid[: 1] / 2., fid[1:]], 0)
     p = tf.exp(-b[:, :, None] * tf.complex(a, 0.)) * fid
     return tf.math.real(tf.signal.fft(tf.reduce_sum(p, 2)))[:, fr_pixels // 2 : 2 * fr_pixels - fr_pixels // 2]
@@ -43,9 +48,9 @@ def get(ob_labels, sp_values, fr_values, dc_values, am_values):
 def generate():
     while True:
         #Random number of peaks from 1 to 9
-        count = tf.random.uniform([], 1, 10, dtype = tf.int32)
+        peaks = tf.random.uniform([], 1, 10, dtype = tf.int32)
         #Random objectness labels as 1. or 0. if a cell contains a peak or not
-        ob_labels = tf.concat([tf.ones([count]), tf.zeros([sp_cells * fr_cells - count])], -1)
+        ob_labels = tf.concat([tf.ones([peaks]), tf.zeros([sp_cells * fr_cells - peaks])], -1)
         ob_labels = tf.random.shuffle(ob_labels)
         ob_labels = tf.reshape(ob_labels, [sp_cells, fr_cells])
         #Random peak parameters relative to each cell in range from 0 to 1
@@ -53,25 +58,37 @@ def generate():
         fr_shifts = tf.random.uniform([sp_cells, fr_cells]) * ob_labels
         dc_shifts = tf.random.uniform([sp_cells, fr_cells]) * ob_labels
         am_shifts = tf.random.uniform([sp_cells, fr_cells]) * ob_labels
+        #Random noise dispersion relative to each cell in range from 0 to 1
+        nd_shift = tf.random.uniform([])
         #Peak parameters relative to the entire grid in range from 0 to 1
         sp_units = (sp_offsets + sp_shifts) / sp_cells
         fr_units = (fr_offsets + fr_shifts) / fr_cells
         dc_units = dc_shifts
         am_units = am_shifts
+        #Noise dispersion relative to the entire grid in range from 0 to 1
+        nd_unit = nd_shift
         #Peak parameters in units used in experiment
         sp_values = sp_units * (sp_max - sp_min) + sp_min
         fr_values = fr_units * (fr_max - fr_min) + fr_min
         dc_values = dc_units * (dc_max - dc_min) + dc_min
         am_values = am_units * (am_max - am_min) + am_min
-        #Spectrum
-        spectrum = get(ob_labels, sp_values, fr_values, dc_values, am_values)
+        #Noise dispersion in units used in experiment
+        nd_value = nd_unit * (nd_max - nd_min) + nd_min
+        #Generated spectrum
+        spectrum = get(ob_labels, sp_values, fr_values, dc_values, am_values, nd_value)
         yield (spectrum, ob_labels), (ob_labels, sp_shifts, fr_shifts, dc_shifts, am_shifts)
 
 #Normalizes spectra to zero mean and unit variance
 @tf.function
 def normalize(data, target):
     spectrum, ob_labels = data
-    spectrum = (spectrum - 180.45589) / 217.40448
+    spectrum = (spectrum - 179.24811) / 216.3278 #noise 0.0
+#    spectrum = (spectrum - 180.86696) / 217.4606 #noise 0.1
+#    spectrum = (spectrum - 179.58424) / 217.31755 #noise 0.2
+#    spectrum = (spectrum - 179.61589) / 222.4815 #noise 0.5
+#    spectrum = (spectrum - 181.52248) / 239.33989 #noise 1.0
+#    spectrum = (spectrum - 179.96593) / 296.3282 #noise 2.0
+#    spectrum = (spectrum - 179.81058) / 550.0122 #noise 5.0
     return (spectrum, ob_labels), target
 
 #Batched dataset of normalized spectra from the above generator
@@ -146,8 +163,8 @@ trainer.compile(tf.keras.optimizers.Adam(),
 
 #Train the actual model via the trainer model and saving weights of the trainer model
 trainer.fit(dataset, steps_per_epoch = 1, epochs = 262144,
-            callbacks = [tf.keras.callbacks.CSVLogger('04train.csv', ' '),
-                         tf.keras.callbacks.ModelCheckpoint('04train.h5',
+            callbacks = [tf.keras.callbacks.CSVLogger('04train00.csv', ' '),
+                         tf.keras.callbacks.ModelCheckpoint('04train00.h5',
                                                           monitor = 'loss',
                                                           verbose = 1,
                                                           save_best_only = True,
